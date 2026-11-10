@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0 - 2026-11-10
+
+- `npm install` now copies the bundle into the site's AdminApp/ folder (postinstall). It finds the folder
+  from `SITEFINITY_ADMINAPP`, a `sitefinityYouTubeField.adminApp` setting in package.json, or a search.
+- `sitefinity-youtube-field install` and `uninstall` find AdminApp/ the same way when no folder is given.
+
 ## 1.0.1 - 2026-11-10
 
 - README: quick start and screenshots. No code changes.

@@ -1,6 +1,6 @@
 {
     "name": "sitefinity-youtube-field",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "description": "Sitefinity AdminApp extension: a YouTube link field with a live preview and a thumbnail column for content lists.",
     "keywords": [
         "sitefinity",
@@ -27,6 +27,7 @@
         "release/",
         "config/",
         "bin/",
+        "lib/",
         "README.md",
         "LICENSE",
         "CHANGELOG.md"
@@ -41,7 +42,8 @@
         "build:release": "npm test && ng build -c prod && node build/publish-bundle.js",
         "test": "node --test \"tests/*.test.ts\"",
         "lint": "ng lint",
-        "prepublishOnly": "npm run build:release"
+        "prepublishOnly": "npm run build:release",
+        "postinstall": "node bin/postinstall.js"
     },
     "devDependencies": {
         "@angular-builders/custom-webpack": "19.0.0",

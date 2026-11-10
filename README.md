@@ -12,10 +12,11 @@ It works on any content type, built-in or Module Builder, that has a short-text 
 ## Quick start
 
 1. **Add the field.** In Administration > Module Builder, open your module's content type and add a **Short text** field named `YouTubeUrl` (or `VideoUrl`). Existing built-in types such as News work too: add the field as a custom field.
-2. **Install the bundle.** Either download [`youtube-field.extensions.bundle.js`](https://github.com/sitefinitysteve/sitefinity-youtube-field/releases/latest) and copy it into your site's `AdminApp/` folder (next to `index.html`), or run:
+2. **Install the bundle.** From your repository root, run:
    ```bash
-   npx sitefinity-youtube-field install path/to/YourSite/AdminApp
+   npm install --save-dev sitefinity-youtube-field
    ```
+   It finds your site's `AdminApp/` folder and copies the bundle in. No Node in your build? Download [`youtube-field.extensions.bundle.js`](https://github.com/sitefinitysteve/sitefinity-youtube-field/releases/latest) and copy it into `AdminApp/` (next to `index.html`) instead.
 3. **Restart the site.** Sitefinity caches extension bundles until the application restarts. Recycle the app pool, or save any change to `web.config`.
 4. **Hard-refresh the backend** (Ctrl+F5), open the content type and paste a YouTube link into the field.
 
@@ -78,26 +79,49 @@ Sitefinity loads every `*.extensions.bundle.js` it finds in the site's `AdminApp
 npm install --save-dev sitefinity-youtube-field
 ```
 
+Installing the package copies the bundle into your site's `AdminApp/` folder; there's no separate copy step. It works out where `AdminApp/` is in this order:
+
+1. The `SITEFINITY_ADMINAPP` environment variable, set to a path.
+2. A `sitefinityYouTubeField.adminApp` setting in your `package.json`:
+   ```json
+   "sitefinityYouTubeField": { "adminApp": "src/YourSite/AdminApp" }
+   ```
+3. Otherwise, it searches the folder you ran `npm install` in, up to three folders down, for an `AdminApp` folder that holds `index.html` and sits next to a `web.config`. It skips `node_modules`, `bin`, `packages` and similar.
+
+If it can't find one, the install still succeeds and prints the command to run instead.
+
+**Allow the install script once.** Newer versions of npm ask before a dependency runs an install script. Approve this one and commit the change, so teammates and CI never get asked:
+
 ```bash
-npx sitefinity-youtube-field install path/to/YourSite/AdminApp
+npm install-scripts approve sitefinity-youtube-field --no-allow-scripts-pin
 ```
 
-`install` accepts the web app root too: it finds `AdminApp/` inside it.
-- `--config` also copies the settings file (see [Configuration](#configuration)).
-- `uninstall` removes both files.
-- `path` prints where the bundle sits inside `node_modules`.
+That adds this to your `package.json`. `--no-allow-scripts-pin` covers future versions as well:
 
-Pinning the version in `package.json` keeps the extension's version in source control. Running the install as a build step stops a Sitefinity upgrade, or an AdminApp restore from NuGet, from deleting a hand-copied file:
+```json
+"allowScripts": { "sitefinity-youtube-field": true }
+```
+
+**Put it back after an AdminApp restore.** A Sitefinity upgrade, or a build that restores `AdminApp/` from NuGet, deletes files it doesn't recognise, this one included. Running the install again puts it back. Add it after the step that restores `AdminApp/`:
 
 ```json
 {
   "scripts": {
-    "postbuild": "sitefinity-youtube-field install ./YourSite/AdminApp"
+    "postbuild": "sitefinity-youtube-field install"
   }
 }
 ```
 
-In an MSBuild or PowerShell build, run the same command after the step that restores `AdminApp/`.
+The command line, for scripts and MSBuild or PowerShell builds:
+
+| Command | What it does |
+|---|---|
+| `npx sitefinity-youtube-field install [folder]` | Copy the bundle in. The folder can be `AdminApp/` or the web app root; with no folder it finds one the same way `npm install` does. |
+| `npx sitefinity-youtube-field install --config` | Also add the settings file (see [Configuration](#configuration)), keeping an existing one unless you pass `--force`. |
+| `npx sitefinity-youtube-field uninstall [folder]` | Remove the bundle and the settings file. |
+| `npx sitefinity-youtube-field path` | Print where the bundle sits inside `node_modules`. |
+
+Set `SITEFINITY_YOUTUBE_FIELD_SKIP_POSTINSTALL=1` to stop `npm install` copying anything.
 
 ### Option 3: build it yourself
 
@@ -236,6 +260,7 @@ npm run build:release  # tests + production bundle -> release/
 | `src/youtube/youtube-url-readonly.component.ts` | Read-only view |
 | `src/youtube/youtube-thumbnail-cell.component.ts` | List thumbnail cell |
 | `src/youtube/youtube.providers.ts` | Field and column registration |
+| `lib/install.js`, `bin/` | Finding `AdminApp/` and copying the bundle (the CLI and the npm postinstall) |
 | `build/` | The build setup from Progress's [AdminApp extensions kit](https://github.com/Sitefinity/sitefinity-admin-app-extensions), unmodified apart from `publish-bundle.js` |
 
 To publish a new version:
@@ -246,7 +271,7 @@ The GitHub workflow builds the bundle and attaches it to a GitHub release. It al
 
 ## License
 
-The extension's own code (`src/`, `tests/`, `bin/`, `config/`, `build/publish-bundle.js`) is [MIT](LICENSE).
+The extension's own code (`src/`, `tests/`, `bin/`, `lib/`, `config/`, `build/publish-bundle.js`) is [MIT](LICENSE).
 
 The rest of `build/`, plus `angular.json`, comes from Progress's Sitefinity AdminApp extensions kit. It's covered by Progress's sample-code license ([`build/PROGRESS-SAMPLE-EULA.md`](build/PROGRESS-SAMPLE-EULA.md)) and is only used to build the bundle.
 

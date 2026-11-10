@@ -2,29 +2,27 @@
 // Copies the prebuilt bundle (and optionally the settings file) into a Sitefinity site's AdminApp/ folder.
 "use strict";
 
-const fs = require("fs");
 const path = require("path");
+const { BUNDLE, CONFIG, bundleSource, root, resolveTargets, install, uninstall } = require("../lib/install");
 
-const root = path.join(__dirname, "..");
-const BUNDLE = "youtube-field.extensions.bundle.js";
-const CONFIG = "youtube-field.config.extensions.bundle.js";
-const bundleSource = path.join(root, "release", BUNDLE);
-const configSource = path.join(root, "config", CONFIG);
 const version = require(path.join(root, "package.json")).version;
 
 const usage = `sitefinity-youtube-field v${version}
 
 Usage:
-  sitefinity-youtube-field install <AdminApp folder> [--config] [--force]
-  sitefinity-youtube-field uninstall <AdminApp folder>
+  sitefinity-youtube-field install [<AdminApp or web app folder>] [--config] [--force]
+  sitefinity-youtube-field uninstall [<AdminApp or web app folder>]
   sitefinity-youtube-field path
 
-  install     Copy ${BUNDLE} into the folder (the site's AdminApp/, next to index.html).
+  install     Copy ${BUNDLE} into the site's AdminApp/ (next to index.html).
+              With no folder, uses SITEFINITY_ADMINAPP, then "sitefinityYouTubeField.adminApp" in
+              package.json, then searches the current folder (up to three levels down).
               --config  also add ${CONFIG} if it is not there yet
               --force   overwrite an existing settings file
-  uninstall   Remove both files from the folder.
+  uninstall   Remove both files.
   path        Print the full path of the bundle in this package.
 
+npm install runs "install" automatically (postinstall) once the package's install script is allowed.
 Restart the site afterwards (Sitefinity caches extension bundles), then hard-refresh the browser.`;
 
 function fail(message) {
@@ -32,74 +30,46 @@ function fail(message) {
     process.exit(1);
 }
 
-function resolveAdminApp(dir) {
-    if (!dir) {
-        fail(`missing the AdminApp folder.\n\n${usage}`);
-    }
+const args = process.argv.slice(2);
+const command = args[0];
+const flags = new Set(args.filter(a => a.startsWith("--")));
+const folder = args.slice(1).find(a => !a.startsWith("--"));
 
-    let target = path.resolve(dir);
-    // Accept the web app root too: <site>/AdminApp.
-    if (!fs.existsSync(path.join(target, "index.html")) && fs.existsSync(path.join(target, "AdminApp", "index.html"))) {
-        target = path.join(target, "AdminApp");
+function targetsOrFail() {
+    const { targets, source } = resolveTargets(folder, process.cwd());
+    if (targets.length === 0) {
+        fail(folder
+            ? `${path.resolve(folder)} is not an AdminApp folder or a web app that contains one.`
+            : `no Sitefinity AdminApp folder found (looked at ${source === "search" ? process.cwd() : source}).\n\n${usage}`);
     }
-
-    if (!fs.existsSync(target) || !fs.statSync(target).isDirectory()) {
-        fail(`${target} is not a folder.`);
-    }
-
-    if (!fs.existsSync(path.join(target, "index.html"))) {
-        console.warn(`sitefinity-youtube-field: warning - ${target} has no index.html; is it the AdminApp folder?`);
-    }
-
-    return target;
+    return targets;
 }
 
-const [command, dir, ...rest] = process.argv.slice(2);
-const flags = new Set(rest.concat(dir && dir.startsWith("--") ? [dir] : []));
-
-switch (command) {
-    case "install": {
-        if (!fs.existsSync(bundleSource)) {
-            fail(`${bundleSource} is missing - run "npm run build:release" in the package first.`);
-        }
-
-        const target = resolveAdminApp(dir);
-        fs.copyFileSync(bundleSource, path.join(target, BUNDLE));
-        console.log(`installed ${path.join(target, BUNDLE)}`);
-
-        if (flags.has("--config")) {
-            const configTarget = path.join(target, CONFIG);
-            if (fs.existsSync(configTarget) && !flags.has("--force")) {
-                console.log(`kept existing ${configTarget} (use --force to replace it)`);
-            } else {
-                fs.copyFileSync(configSource, configTarget);
-                console.log(`installed ${configTarget}`);
+try {
+    switch (command) {
+        case "install":
+            for (const target of targetsOrFail()) {
+                install(target, { config: flags.has("--config"), force: flags.has("--force") });
             }
-        }
-
-        console.log("Restart the site, then hard-refresh the browser (Ctrl+F5).");
-        break;
-    }
-    case "uninstall": {
-        const target = resolveAdminApp(dir);
-        for (const name of [BUNDLE, CONFIG]) {
-            const file = path.join(target, name);
-            if (fs.existsSync(file)) {
-                fs.unlinkSync(file);
-                console.log(`removed ${file}`);
+            console.log("Restart the site, then hard-refresh the browser (Ctrl+F5).");
+            break;
+        case "uninstall":
+            for (const target of targetsOrFail()) {
+                uninstall(target);
             }
-        }
-        break;
+            break;
+        case "path":
+            console.log(bundleSource);
+            break;
+        case undefined:
+        case "help":
+        case "--help":
+        case "-h":
+            console.log(usage);
+            break;
+        default:
+            fail(`unknown command "${command}".\n\n${usage}`);
     }
-    case "path":
-        console.log(bundleSource);
-        break;
-    case undefined:
-    case "help":
-    case "--help":
-    case "-h":
-        console.log(usage);
-        break;
-    default:
-        fail(`unknown command "${command}".\n\n${usage}`);
+} catch (err) {
+    fail(err.message);
 }
