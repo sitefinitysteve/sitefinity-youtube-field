@@ -1,0 +1,71 @@
+<div (paste)="onPaste()">
+    <sf-input [name]="settings.key"
+              [placeholder]="'Paste the YouTube link or embed code'"
+              ngDefaultControl
+              [ngModel]="text"
+              (ngModelChange)="onTextChange($event)"
+              (onBlur)="onFieldBlur()"
+              (onFocus)="onFocus()">
+    </sf-input>
+</div>
+
+<div aria-live="polite">
+    <p *ngIf="state === 'checking'" class="yt-status">
+        <svg class="yt-status__icon yt-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.2-8.56"/></svg>
+        <span>Checking YouTube…</span>
+    </p>
+    <p *ngIf="state === 'found'" class="yt-status -found">
+        <svg class="yt-status__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+        <span>Found on YouTube<ng-container *ngIf="youTubeTitle">: <strong>{{ youTubeTitle }}</strong></ng-container></span>
+    </p>
+    <p *ngIf="state === 'invalid'" class="yt-status -error">
+        <svg class="yt-status__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <span>This isn't a YouTube video link. Paste the video's address or its embed code.</span>
+    </p>
+    <p *ngIf="state === 'badId'" class="yt-status -error">
+        <svg class="yt-status__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <span>This YouTube link's video ID is incomplete or has extra characters. Check the end of the link.</span>
+    </p>
+    <p *ngIf="state === 'missing'" class="yt-status -error">
+        <svg class="yt-status__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <span>YouTube can't find this video. Check the link for a typo, or copy it again from YouTube.</span>
+    </p>
+    <p *ngIf="state === 'restricted'" class="yt-status -warning">
+        <svg class="yt-status__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M12 3 2 21h20L12 3z"/><path d="M12 10v4M12 18h.01"/></svg>
+        <span>This video is private or doesn't allow embedding, so it won't play on the site.</span>
+    </p>
+    <p *ngIf="note" class="yt-note">{{ note }}</p>
+</div>
+
+<div *ngIf="state !== 'empty'" class="yt-preview">
+    <iframe *ngIf="showPlayer"
+            [src]="embed"
+            title="Preview of the selected YouTube video"
+            allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen
+            referrerpolicy="strict-origin-when-cross-origin"></iframe>
+
+    <div *ngIf="state === 'invalid'" class="yt-empty -error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/><path d="M3 3l18 18"/></svg>
+        <strong>No video in this link</strong>
+        <span>Works with a YouTube link (youtube.com/watch?v=…, youtu.be/…, Shorts) or the embed code from YouTube's Share › Embed.</span>
+    </div>
+
+    <div *ngIf="state === 'badId'" class="yt-empty -error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/><path d="M3 3l18 18"/></svg>
+        <strong>Check the video ID</strong>
+        <span>YouTube video IDs are exactly 11 characters (after <code>v=</code> or <code>youtu.be/</code>). Copy the link again from YouTube if you're not sure.</span>
+    </div>
+
+    <div *ngIf="state === 'missing'" class="yt-empty -error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35M8.5 8.5l5 5M13.5 8.5l-5 5"/></svg>
+        <strong>Video not found</strong>
+        <span>The link looks right, but YouTube has no video with this address. It may have a typo, or the video was removed.</span>
+    </div>
+
+    <div *ngIf="state === 'restricted'" class="yt-empty -warning">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        <strong>Can't be embedded</strong>
+        <span>Ask the video's owner to make it public (or unlisted) and allow embedding in YouTube Studio.</span>
+    </div>
+</div>

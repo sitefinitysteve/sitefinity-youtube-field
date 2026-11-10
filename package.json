@@ -1,0 +1,81 @@
+{
+    "name": "sitefinity-youtube-field",
+    "version": "1.0.0",
+    "description": "Sitefinity AdminApp extension: a YouTube link field with a live preview and a thumbnail column for content lists.",
+    "keywords": [
+        "sitefinity",
+        "sitefinity-adminapp",
+        "adminapp-extension",
+        "youtube",
+        "cms",
+        "progress"
+    ],
+    "license": "MIT",
+    "author": "Steve Scott",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/sitefinitysteve/sitefinity-youtube-field.git"
+    },
+    "bugs": {
+        "url": "https://github.com/sitefinitysteve/sitefinity-youtube-field/issues"
+    },
+    "homepage": "https://github.com/sitefinitysteve/sitefinity-youtube-field#readme",
+    "bin": {
+        "sitefinity-youtube-field": "bin/cli.js"
+    },
+    "files": [
+        "release/",
+        "config/",
+        "bin/",
+        "README.md",
+        "LICENSE",
+        "CHANGELOG.md"
+    ],
+    "engines": {
+        "node": ">=20"
+    },
+    "scripts": {
+        "start": "ng serve --port 3000",
+        "build": "ng build",
+        "build:prod": "ng build -c prod",
+        "build:release": "npm test && ng build -c prod && node build/publish-bundle.js",
+        "test": "node --test \"tests/*.test.ts\"",
+        "lint": "ng lint",
+        "prepublishOnly": "npm run build:release"
+    },
+    "devDependencies": {
+        "@angular-builders/custom-webpack": "19.0.0",
+        "@angular-devkit/build-angular": "19.2.3",
+        "@angular-eslint/builder": "19.1.0",
+        "@angular-eslint/eslint-plugin": "19.1.0",
+        "@angular-eslint/eslint-plugin-template": "19.1.0",
+        "@angular-eslint/template-parser": "19.1.0",
+        "@angular/animations": "19.2.2",
+        "@angular/cli": "19.2.3",
+        "@angular/common": "19.2.2",
+        "@angular/compiler": "19.2.2",
+        "@angular/compiler-cli": "19.2.2",
+        "@angular/core": "19.2.2",
+        "@angular/forms": "19.2.2",
+        "@angular/platform-browser": "19.2.2",
+        "@angular/platform-browser-dynamic": "19.2.2",
+        "@angular/router": "19.2.2",
+        "@types/node": "22.13.4",
+        "@types/webpack": "5.28.5",
+        "@typescript-eslint/eslint-plugin": "8.24.1",
+        "@typescript-eslint/parser": "8.24.1",
+        "@progress/sitefinity-adminapp-sdk": "15.3.8523",
+        "@progress/sitefinity-component-framework": "12.0.0",
+        "css-loader": "5.2.7",
+        "eslint": "9.20.1",
+        "postcss": "8.5.3",
+        "postcss-loader": "7.0.2",
+        "rxjs": "7.8.1",
+        "style-loader": "3.3.1",
+        "ts-node": "10.9.2",
+        "tslib": "2.8.1",
+        "typescript": "5.5.4",
+        "webpack": "5.98.0",
+        "zone.js": "0.15.0"
+    }
+}

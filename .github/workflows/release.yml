@@ -1,0 +1,36 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  id-token: write   # npm provenance
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - run: npm run build:release
+      - name: GitHub release with the bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "$GITHUB_REF_NAME"
+          release/youtube-field.extensions.bundle.js
+          config/youtube-field.config.extensions.bundle.js
+          --title "$GITHUB_REF_NAME" --notes "See CHANGELOG.md"
+      - name: Publish to npm (when NPM_TOKEN is set)
+        if: ${{ env.NPM_TOKEN != '' }}
+        env:
+          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
+        run: npm publish --provenance --access public --ignore-scripts
