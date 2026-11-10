@@ -7,6 +7,20 @@ A Sitefinity AdminApp extension for content types that store a YouTube link.
 
 It works on any content type, built-in or Module Builder, that has a short-text field with a matching name. Nothing is hard-coded to a particular module.
 
+![Content list with the Video thumbnail column](https://raw.githubusercontent.com/sitefinitysteve/sitefinity-youtube-field/main/docs/list-column.png)
+
+## Quick start
+
+1. **Add the field.** In Administration > Module Builder, open your module's content type and add a **Short text** field named `YouTubeUrl` (or `VideoUrl`). Existing built-in types such as News work too: add the field as a custom field.
+2. **Install the bundle.** Either download [`youtube-field.extensions.bundle.js`](https://github.com/sitefinitysteve/sitefinity-youtube-field/releases/latest) and copy it into your site's `AdminApp/` folder (next to `index.html`), or run:
+   ```bash
+   npx sitefinity-youtube-field install path/to/YourSite/AdminApp
+   ```
+3. **Restart the site.** Sitefinity caches extension bundles until the application restarts. Recycle the app pool, or save any change to `web.config`.
+4. **Hard-refresh the backend** (Ctrl+F5), open the content type and paste a YouTube link into the field.
+
+That's all the setup there is; there are no settings to fill in. To change field names or limit which types it applies to, see [Configuration](#configuration).
+
 ## What it does
 
 ### In the edit screen
@@ -22,6 +36,8 @@ Editors paste a YouTube link in any form, and the field cleans it up:
 
 The field always stores one standard link: `https://www.youtube.com/watch?v=ID`, plus `&t=Ns` when the pasted link had a start time. Your front-end code only ever has to handle that one format.
 
+<img src="https://raw.githubusercontent.com/sitefinitysteve/sitefinity-youtube-field/main/docs/editor-preview.png" alt="Edit screen: pasted embed code cleaned to a watch link, with the video's title and a live preview" width="560">
+
 - **Pasted embed code:** the field keeps just the link, and tells the editor it did ("Embed code detected - saved just the video link.").
 - **Preview:** a player shows the video under the field while the editor works, along with "✓ Found on YouTube: *title*".
 - **Problems:** a broken link gets a clear panel in place of the preview. The panels and what each one does to saving:
@@ -32,6 +48,8 @@ The field always stores one standard link: `https://www.youtube.com/watch?v=ID`,
 | Check the video ID | A YouTube link whose ID is cut short or has extra characters | Blocked |
 | Video not found | YouTube says the video doesn't exist (a typo, or it was removed) | Blocked; switch off with `blockMissingVideos` |
 | Can't be embedded | The video is private or embedding is turned off | Allowed, with a warning |
+
+<img src="https://raw.githubusercontent.com/sitefinitysteve/sitefinity-youtube-field/main/docs/editor-bad-id.png" alt="Check the video ID panel for a link with an extra character" width="420"> <img src="https://raw.githubusercontent.com/sitefinitysteve/sitefinity-youtube-field/main/docs/editor-not-found.png" alt="Video not found panel for a link YouTube doesn't know" width="420">
 
 - **Read-only view:** locked items and users without edit rights see the thumbnail and the link.
 

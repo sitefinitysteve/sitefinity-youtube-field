@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1 - 2026-11-10
+
+- README: quick start and screenshots. No code changes.
+
 ## 1.0.0 - 2026-11-10
 
 - YouTube link field for any content type with a matching short-text field (`YouTubeUrl`, `YouTubeVideoUrl`,
