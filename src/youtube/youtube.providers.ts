@@ -1,13 +1,13 @@
 import { ClassProvider, Injectable } from "@angular/core";
-import { HttpClient } from "@angular/common/http";
-import { Observable, concat, defer, of } from "rxjs";
-import { catchError, defaultIfEmpty, filter, map, shareReplay, switchMap, take } from "rxjs/operators";
+import { Observable, from, of } from "rxjs";
+import { catchError, map, shareReplay } from "rxjs/operators";
 import {
     COLUMNS_TOKEN, ColumnModel, EntityData, FIELDS_PROVIDER_TOKEN, FieldData, FieldRegistration, FieldTypes,
     FieldsProvider, HTTP_PREFIX, ListColumnsProvider
 } from "@progress/sitefinity-adminapp-sdk/app/api/v1";
 import { getConfig, matchFieldName, typeAllowed } from "./config";
-import { YouTubeThumbnailCellComponent, YouTubeCellFields } from "./youtube-thumbnail-cell.component";
+import { indexMetadata, MetadataIndex, pickCellFields } from "./odata-metadata";
+import { YouTubeThumbnailCellComponent } from "./youtube-thumbnail-cell.component";
 import { YouTubeUrlReadonlyComponent } from "./youtube-url-readonly.component";
 import { YouTubeUrlWriteComponent } from "./youtube-url-write.component";
 import { YouTubeUrlSettings } from "./youtube-url.settings";
@@ -43,15 +43,14 @@ export class YouTubeFieldsProvider implements FieldsProvider {
 }
 
 /**
- * Adds the thumbnail column to any content list whose type has one of the configured fields. The AdminApp
- * does not say which fields a type has, so the first list of each type asks the OData service once
- * (`$top=0&$select=Field`; an unknown field is a 400) and remembers the answer for the session.
+ * Adds the thumbnail column to content lists whose type has one of the configured fields. The AdminApp does not
+ * say which fields a type has, so the first list opened in a session reads the OData service's $metadata once
+ * and every list after that is answered from it. Lists without a matching field (pages, news without the field)
+ * get no column. If $metadata can't be read, no list gets the column.
  */
 @Injectable()
 export class YouTubeColumnsProvider implements ListColumnsProvider {
-    private static readonly cache = new Map<string, Observable<YouTubeCellFields | null>>();
-
-    constructor(private http: HttpClient) { }
+    private static metadata: Observable<MetadataIndex | null>;
 
     getColumns(entityData: EntityData): Observable<ColumnModel[]> {
         const config = getConfig();
@@ -65,14 +64,20 @@ export class YouTubeColumnsProvider implements ListColumnsProvider {
             return of([]);
         }
 
-        return this.fieldsFor(metadata.setName, entityData.provider).pipe(
-            map(fields => fields ? [{
-                name: COLUMN_NAME,
-                title: config.columnTitle,
-                ordinal: config.columnOrdinal,
-                clickable: true,
-                componentData: { type: YouTubeThumbnailCellComponent, properties: { fields } }
-            } as ColumnModel] : [])
+        return this.index().pipe(
+            map(index => index ? pickCellFields(index, metadata.setName, config.fieldNames, config.thumbnailFieldNames) : null),
+            map(fields => {
+                if (config.debug) {
+                    console.log("[youtube-field] column fields for " + metadata.setName + ":", JSON.stringify(fields));
+                }
+                return fields ? [{
+                    name: COLUMN_NAME,
+                    title: config.columnTitle,
+                    ordinal: config.columnOrdinal,
+                    clickable: true,
+                    componentData: { type: YouTubeThumbnailCellComponent, properties: { fields } }
+                } as ColumnModel] : [];
+            })
         );
     }
 
@@ -80,34 +85,39 @@ export class YouTubeColumnsProvider implements ListColumnsProvider {
         return of([]);
     }
 
-    private fieldsFor(setName: string, provider: string): Observable<YouTubeCellFields | null> {
-        const key = `${setName}|${provider || ""}`;
-        let found = YouTubeColumnsProvider.cache.get(key);
-        if (!found) {
-            const { fieldNames, thumbnailFieldNames } = getConfig();
-            found = this.firstExisting(setName, provider, fieldNames.map(f => `$select=${f}`)).pipe(
-                switchMap(i => i < 0 ? of(null) : this.firstExisting(setName, provider,
-                    thumbnailFieldNames.map(t => `$select=Id&$expand=${t}`)).pipe(
-                    map(t => ({ videoField: fieldNames[i], thumbnailField: t < 0 ? null : thumbnailFieldNames[t] }))
-                )),
+    private index(): Observable<MetadataIndex | null> {
+        if (!YouTubeColumnsProvider.metadata) {
+            // Plain fetch, not HttpClient: the AdminApp's interceptors force a JSON Accept header and rewrite the
+            // query (dropping $format), and $metadata answers JSON requests with a 500. It is XML-only and
+            // readable with the backend's own session cookie.
+            // HTTP_PREFIX is a placeholder ("sfprefix") only HttpClient resolves, so build the service address from
+            // where the backend is mounted: <site>/Sitefinity/adminapp/... -> <site>/sf/system/$metadata.
+            const siteRoot = location.pathname.split(/\/sitefinity\//i)[0];
+            YouTubeColumnsProvider.metadata = from(fetch(`${location.origin}${siteRoot}/sf/system/$metadata`, {
+                credentials: "same-origin",
+                headers: { Accept: "application/xml" }
+            }).then(r => {
+                if (!r.ok) {
+                    throw new Error(`HTTP ${r.status}`);
+                }
+                return r.text();
+            })).pipe(
+                map(xml => {
+                    const index = indexMetadata(xml);
+                    if (index.size === 0) {
+                        throw new Error("no entity sets in the response");
+                    }
+                    return index;
+                }),
+                catchError(err => {
+                    console.warn("[youtube-field] could not read OData $metadata; no thumbnail column.", err);
+                    return of(null);
+                }),
                 shareReplay(1)
             );
-            YouTubeColumnsProvider.cache.set(key, found);
         }
 
-        return found;
-    }
-
-    /** Index of the first query the set accepts, or -1. Queries run one after another and stop at the first hit. */
-    private firstExisting(setName: string, provider: string, queries: string[]): Observable<number> {
-        const providerParam = provider ? `&sf_provider=${encodeURIComponent(provider)}` : "";
-        const probes = queries.map((q, i) => defer(() =>
-            this.http.get(`${HTTP_PREFIX}/sf/system/${setName}?$top=0&${q}${providerParam}`).pipe(
-                map(() => i),
-                catchError(() => of(-1))
-            )));
-
-        return concat(...probes).pipe(filter(i => i >= 0), take(1), defaultIfEmpty(-1));
+        return YouTubeColumnsProvider.metadata;
     }
 }
 

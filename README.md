@@ -9,9 +9,24 @@ It works on any content type, built-in or Module Builder, that has a short-text 
 
 ![Content list with the Video thumbnail column](https://raw.githubusercontent.com/sitefinitysteve/sitefinity-youtube-field/main/docs/list-column.png)
 
+## The field name matters
+
+The extension finds your field **by its name**. It only touches **Short text** fields named one of these (any letter case):
+
+| Field name | |
+|---|---|
+| `YouTubeUrl` | recommended |
+| `YouTubeVideoUrl` | |
+| `YouTubeLink` | |
+| `VideoUrl` | |
+
+A field called anything else (`Video`, `YouTube`, `Link`, `Url`) is ignored: no YouTube editor and no thumbnail column. Other names can be added with the [`fieldNames` setting](#configuration).
+
+The thumbnail column appears **only** on content lists whose type actually has one of those fields; every other list (Pages, News without the field, and so on) is left exactly as it was. For a custom thumbnail, add a **Related media > Image** field named `CustomThumbnail` (or `Thumbnail`).
+
 ## Quick start
 
-1. **Add the field.** In Administration > Module Builder, open your module's content type and add a **Short text** field named `YouTubeUrl` (or `VideoUrl`). Existing built-in types such as News work too: add the field as a custom field.
+1. **Add the field.** In Administration > Module Builder, open your module's content type and add a **Short text** field named exactly `YouTubeUrl` (see [the field name matters](#the-field-name-matters)). Existing built-in types such as News work too: add the field as a custom field.
 2. **Install the bundle.** From your repository root, run:
    ```bash
    npm install --save-dev sitefinity-youtube-field
@@ -184,7 +199,7 @@ window.SitefinityYouTubeField = {
 
 | Setting | Default | What it does |
 |---|---|---|
-| `fieldNames` | `["YouTubeUrl", "YouTubeVideoUrl", "YouTubeLink", "VideoUrl"]` | Short-text fields that get the YouTube editor, on any content type. The editor matches case-insensitively. The list column looks the names up in OData, so spell them as Sitefinity does (for example `VideoUrl`, not `videourl`). |
+| `fieldNames` | `["YouTubeUrl", "YouTubeVideoUrl", "YouTubeLink", "VideoUrl"]` | Short-text fields that get the YouTube editor, on any content type. Matched case-insensitively, by the editor and the list column alike. |
 | `types` | `[]` (every type) | Limit to some content types by set name (`"videos"`, `"newsitems"`) or full type name (`"Telerik.Sitefinity.DynamicTypes.Model.Videos.Video"`). `*` is a wildcard. The edit screen only knows the set name, so use set names if you want both the editor and the column limited. |
 | `widgetDesigners` | `false` | Also use the editor on matching properties in widget designers (`typeName` `widget-<Name>`). |
 | `thumbnailFieldNames` | `["CustomThumbnail", "Thumbnail"]` | Related-image fields whose image replaces YouTube's in the list column. The first one the type has is used. `[]` always uses YouTube's thumbnail. |
@@ -200,10 +215,10 @@ Missing or invalid settings fall back to their defaults. The settings are read e
 ## How the matching works
 
 - **Edit screen:** for every field it draws, the AdminApp asks extensions whether they want to replace it. It passes the field name, the field type and the content type's set name. This extension takes short-text fields whose name is in `fieldNames`, on a type allowed by `types`. It leaves every other field alone.
-- **Content list:** the AdminApp doesn't tell extensions which fields a type has. The first time a list of each type opens, the extension asks the OData service, `GET /sf/system/<set>?$top=0&$select=<field>`, for each name in `fieldNames` until one works.
-  - **Thumbnail field:** if a name works, it checks the `thumbnailFieldNames` the same way, using `$expand`.
-  - **Result:** the answer is kept for the rest of the session. Types without a matching field get no column.
-  - **What you'll see:** that first check can show up as one or two `400` responses in the browser's network tab. That's the expected answer for "no such field".
+- **Content list:** the AdminApp doesn't tell extensions which fields a type has. The first time any content list opens, the extension reads the OData service's field list once (`GET /sf/system/$metadata`) and keeps it for the session.
+  - **Column:** a list gets the Video column only when its type has a short-text field named in `fieldNames`. Everything else, Pages included, gets no column.
+  - **Thumbnail field:** the first `thumbnailFieldNames` entry the type has as related data is used for custom thumbnails.
+  - **If the field list can't be read:** no list gets the column, and the console says why.
 
 ## Showing the video on your site
 
@@ -238,7 +253,8 @@ The existence check calls YouTube's public oEmbed endpoint (`https://www.youtube
 | Symptom | Fix |
 |---|---|
 | Nothing changes after installing | Restart the site, then hard-refresh (Ctrl+F5). Make sure the file is directly in `AdminApp/`, not in a subfolder. Open `/admin-bridge/extensions` and search it for `sitefinity-youtube-field`. |
-| The editor shows up but the list column doesn't | The list check needs the exact field spelling. Turn on `debug`, open the list and read the `[youtube-field] list:` lines. |
+| The editor shows up but the list column doesn't | Turn on `debug`, open the list and read the `[youtube-field] column fields for …` line (`null` means the type has no matching field). A `could not read OData $metadata` warning means the field list was unreachable. |
+| A Video column on lists that have no video field | Fixed in 1.1.1 (Pages showed an empty column). Update the package. |
 | A field I didn't mean is using the editor | Its name is in `fieldNames`. Narrow `fieldNames`, or limit `types`. |
 | All the backend extensions stopped working | A JavaScript error in any `*.extensions.bundle.js` breaks all of them, because Sitefinity concatenates them. Check the console's first red line, and the syntax of the settings file. |
 | "Video not found" for a video that exists | The video may be very new, or YouTube's oEmbed may be unreachable from the editor's network. Set `blockMissingVideos: false` to allow saving anyway. |

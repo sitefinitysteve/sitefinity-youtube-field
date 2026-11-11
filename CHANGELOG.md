@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.1 - 2026-11-10
+
+- Fix: the Video column appeared, empty, on lists without a video field (Pages). The column now checks the
+  type's real fields from the OData `$metadata` document, so it shows only where the field exists. Field names
+  are matched case-insensitively for the column too.
+- README: a "The field name matters" section listing the exact field names.
+
 ## 1.1.0 - 2026-11-10
 
 - `npm install` now copies the bundle into the site's AdminApp/ folder (postinstall). It finds the folder
